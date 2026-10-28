@@ -136,6 +136,7 @@ public class InvestmentsController : BaseApiController
     /// <summary>
     /// Fetches live accurate market price or NAV for any stock (e.g. RELIANCE, TCS, INFY) or Mutual Fund.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("quote")]
     [ProducesResponseType(typeof(ApiResponse<MarketQuoteDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQuote([FromQuery] string query, [FromQuery] string? type = null, CancellationToken ct = default)
@@ -157,6 +158,7 @@ public class InvestmentsController : BaseApiController
     /// <summary>
     /// Searches Indian Mutual Funds registered with AMFI via the official public directory.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("mutual-funds/search")]
     [ProducesResponseType(typeof(ApiResponse<List<MutualFundSearchResultDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchMutualFunds([FromQuery] string query, CancellationToken ct = default)
@@ -168,6 +170,7 @@ public class InvestmentsController : BaseApiController
     /// <summary>
     /// Retrieves the official live NAV for a Mutual Fund by AMFI Scheme Code.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("mutual-funds/{schemeCode:long}/nav")]
     [ProducesResponseType(typeof(ApiResponse<decimal>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMutualFundNav(long schemeCode, CancellationToken ct = default)

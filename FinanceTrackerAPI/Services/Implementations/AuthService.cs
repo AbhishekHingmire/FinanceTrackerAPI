@@ -86,6 +86,7 @@ public class AuthService : IAuthService
 
             user = new User
             {
+                Id = Guid.NewGuid(),
                 MobileNumber = normalizedMobile,
                 FullName = fullName,
                 Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant(),
@@ -96,14 +97,11 @@ public class AuthService : IAuthService
             };
 
             _dbContext.Users.Add(user);
-            await _dbContext.SaveChangesAsync(ct);
 
-            // Seed initial categories for new user
-            SeedUserDefaultCategories(user.Id);
-
-            // Seed default profile & preferences
-            user.ProfileTargets = new UserProfileTargets
+            // Seed default profile targets for new user
+            var profileTargets = new UserProfileTargets
             {
+                Id = Guid.NewGuid(),
                 UserId = user.Id,
                 FullName = user.FullName,
                 Email = user.Email ?? string.Empty,
@@ -112,9 +110,12 @@ public class AuthService : IAuthService
                 EmergencyTargetMonths = 6,
                 RiskProfile = "Balanced"
             };
+            _dbContext.ProfileTargets.Add(profileTargets);
 
-            user.WealthPreferences = new UserWealthPreferences
+            // Seed default wealth preferences for new user
+            var wealthPrefs = new UserWealthPreferences
             {
+                Id = Guid.NewGuid(),
                 UserId = user.Id,
                 Currency = "INR",
                 DateFormat = "DD/MM/YYYY",
@@ -123,6 +124,10 @@ public class AuthService : IAuthService
                 DefaultType = "Expense",
                 DefaultPaymentMethod = "UPI"
             };
+            _dbContext.WealthPreferences.Add(wealthPrefs);
+
+            // Seed initial categories for new user
+            SeedUserDefaultCategories(user.Id);
 
             await _dbContext.SaveChangesAsync(ct);
             _logger.LogInformation("New user registered successfully: {UserId}, Mobile: {Mobile}", user.Id, user.MobileNumber);

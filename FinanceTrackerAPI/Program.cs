@@ -129,4 +129,30 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// 6. Automatic Database Migration on Startup
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var dbContext = services.GetRequiredService<FinanceTrackerDbContext>();
+        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+        if (pendingMigrations.Any())
+        {
+            logger.LogInformation("Applying {Count} pending database migration(s)...", pendingMigrations.Count());
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("Database migrations applied successfully.");
+        }
+        else
+        {
+            logger.LogInformation("Database is up to date. No pending migrations.");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while automatically applying database migrations on startup. Please check SQL Server connectivity and user-secrets password.");
+    }
+}
+
 app.Run();

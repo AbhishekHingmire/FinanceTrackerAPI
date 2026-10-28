@@ -9,15 +9,18 @@ public class TextplateSmsService : ISmsService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly IErrorLogService _errorLogService;
     private readonly ILogger<TextplateSmsService> _logger;
 
     public TextplateSmsService(
         HttpClient httpClient,
         IConfiguration configuration,
+        IErrorLogService errorLogService,
         ILogger<TextplateSmsService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _errorLogService = errorLogService;
         _logger = logger;
     }
 
@@ -69,9 +72,9 @@ public class TextplateSmsService : ISmsService
 
         var apiUrl = _configuration["Textplate:ApiUrl"] ?? "https://api.textplate.in/v1/send-sms";
         var apiKey = _configuration["Textplate:ApiKey"] ?? "0f5d7968183ceabe30fac292f87e4a56711d6450";
-        var templateId = _configuration["Textplate:TemplateId"] ?? "1";
+        var templateId = _configuration["Textplate:TemplateId"] ?? "e09d6413a6d6b287298a7309170f1a3d07be2bac";
         var expiryValue = _configuration["Textplate:ExpiryValue"] ?? "5 minutes";
-        var detailValue = _configuration["Textplate:DetailValue"] ?? "WealthTrack verification";
+        var detailValue = _configuration["Textplate:DetailValue"] ?? "Finance Tracking";
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -82,18 +85,19 @@ public class TextplateSmsService : ISmsService
             };
         }
 
-        // 3. Build Multipart Form Data matching cURL -F specifications
+        // 3. Form-UrlEncoded payload matching Python requests.post(url, data=form)
+        var formDict = new Dictionary<string, string>
+        {
+            { "mobileNumber", formattedMobile },
+            { "templateId", templateId },
+            { "otpValue", otpCode },
+            { "expiryValue", expiryValue },
+            { "detailValue", detailValue }
+        };
+
         using var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
-
-        using var formContent = new MultipartFormDataContent();
-        formContent.Add(new StringContent(formattedMobile), "mobileNumber");
-        formContent.Add(new StringContent(templateId), "templateId");
-        formContent.Add(new StringContent(otpCode), "otpValue");
-        formContent.Add(new StringContent(expiryValue), "expiryValue");
-        formContent.Add(new StringContent(detailValue), "detailValue");
-
-        request.Content = formContent;
+        request.Content = new FormUrlEncodedContent(formDict);
 
         try
         {
@@ -109,6 +113,17 @@ public class TextplateSmsService : ISmsService
             if (!response.IsSuccessStatusCode)
             {
                 var failureMsg = ParseErrorMessage(responseBody, $"SMS service error (HTTP {(int)response.StatusCode}: {response.ReasonPhrase})");
+                
+                // Persist gateway error to database ErrorLogs
+                await _errorLogService.LogErrorAsync(
+                    message: $"Textplate gateway error (HTTP {(int)response.StatusCode}): {failureMsg}",
+                    controllerName: "TextplateSmsService",
+                    methodName: "SendOtpSmsAsync",
+                    requestPath: apiUrl,
+                    httpMethod: "POST",
+                    additionalInfo: responseBody,
+                    ct: ct);
+
                 return new SmsSendResult
                 {
                     Success = false,
@@ -122,6 +137,15 @@ public class TextplateSmsService : ISmsService
             var parsedError = CheckForErrorInSuccessPayload(responseBody);
             if (!string.IsNullOrWhiteSpace(parsedError))
             {
+                await _errorLogService.LogErrorAsync(
+                    message: $"Textplate gateway rejected dispatch: {parsedError}",
+                    controllerName: "TextplateSmsService",
+                    methodName: "SendOtpSmsAsync",
+                    requestPath: apiUrl,
+                    httpMethod: "POST",
+                    additionalInfo: responseBody,
+                    ct: ct);
+
                 return new SmsSendResult
                 {
                     Success = false,
@@ -142,6 +166,7 @@ public class TextplateSmsService : ISmsService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error occurred while calling Textplate SMS API");
+            await _errorLogService.LogExceptionAsync(ex, null, "TextplateSmsService", "SendOtpSmsAsync", "Network failure reaching Textplate", ct);
             return new SmsSendResult
             {
                 Success = false,
@@ -151,6 +176,7 @@ public class TextplateSmsService : ISmsService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error occurred during SMS dispatch");
+            await _errorLogService.LogExceptionAsync(ex, null, "TextplateSmsService", "SendOtpSmsAsync", "Unexpected exception", ct);
             return new SmsSendResult
             {
                 Success = false,

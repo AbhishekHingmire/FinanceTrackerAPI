@@ -25,7 +25,7 @@ public class CategoriesController : BaseApiController
     {
         var userId = GetUserId();
         var categories = await _dbContext.Categories
-            .Where(c => c.UserId == userId || c.UserId == null)
+            .Where(c => c.UserId == userId)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
 

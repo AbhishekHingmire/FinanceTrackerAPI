@@ -134,6 +134,18 @@ public class InvestmentsController : BaseApiController
     }
 
     /// <summary>
+    /// Searches national and international stocks, mutual funds, ETFs, and gold.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(ApiResponse<List<InstrumentSearchResultDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchInstruments([FromQuery] string query = "", [FromQuery] string? category = null, CancellationToken ct = default)
+    {
+        var results = await _marketDataService.SearchAllInstrumentsAsync(query, category, ct);
+        return Ok(ApiResponse<List<InstrumentSearchResultDto>>.SuccessResult(results));
+    }
+
+    /// <summary>
     /// Fetches live accurate market price or NAV for any stock (e.g. RELIANCE, TCS, INFY) or Mutual Fund.
     /// </summary>
     [AllowAnonymous]

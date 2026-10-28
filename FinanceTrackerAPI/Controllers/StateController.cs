@@ -59,9 +59,9 @@ public class StateController : BaseApiController
             .OrderBy(a => a.CreatedAt)
             .ToListAsync(ct);
 
-        // Fetch Categories
+        // Fetch Categories (Strictly user-isolated: no global shared records)
         var categories = await _dbContext.Categories
-            .Where(c => c.UserId == userId || c.UserId == null)
+            .Where(c => c.UserId == userId)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
 

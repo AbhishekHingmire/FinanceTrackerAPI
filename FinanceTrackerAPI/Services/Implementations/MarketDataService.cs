@@ -5,6 +5,94 @@ using FinanceTrackerAPI.Services.Interfaces;
 
 public class MarketDataService : IMarketDataService
 {
+    private static readonly List<FinanceTrackerAPI.DTOs.Investments.InstrumentSearchResultDto> MasterInstruments = new()
+    {
+        // National Stocks (India - NSE)
+        new() { Symbol = "RELIANCE.NS", Name = "Reliance Industries Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1270.50m, Currency = "INR" },
+        new() { Symbol = "TCS.NS", Name = "Tata Consultancy Services Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 2460.00m, Currency = "INR" },
+        new() { Symbol = "HDFCBANK.NS", Name = "HDFC Bank Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1780.20m, Currency = "INR" },
+        new() { Symbol = "ICICIBANK.NS", Name = "ICICI Bank Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1265.80m, Currency = "INR" },
+        new() { Symbol = "INFY.NS", Name = "Infosys Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1845.00m, Currency = "INR" },
+        new() { Symbol = "SBIN.NS", Name = "State Bank of India", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 820.40m, Currency = "INR" },
+        new() { Symbol = "BHARTIARTL.NS", Name = "Bharti Airtel Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1690.00m, Currency = "INR" },
+        new() { Symbol = "ITC.NS", Name = "ITC Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 475.60m, Currency = "INR" },
+        new() { Symbol = "LT.NS", Name = "Larsen & Toubro Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 3650.00m, Currency = "INR" },
+        new() { Symbol = "TATAMOTORS.NS", Name = "Tata Motors Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 875.00m, Currency = "INR" },
+        new() { Symbol = "HINDUNILVR.NS", Name = "Hindustan Unilever Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 2390.00m, Currency = "INR" },
+        new() { Symbol = "BAJFINANCE.NS", Name = "Bajaj Finance Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 6980.00m, Currency = "INR" },
+        new() { Symbol = "AXISBANK.NS", Name = "Axis Bank Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1195.00m, Currency = "INR" },
+        new() { Symbol = "KOTAKBANK.NS", Name = "Kotak Mahindra Bank Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1760.00m, Currency = "INR" },
+        new() { Symbol = "WIPRO.NS", Name = "Wipro Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 540.00m, Currency = "INR" },
+        new() { Symbol = "SUNPHARMA.NS", Name = "Sun Pharmaceutical Industries Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 1880.00m, Currency = "INR" },
+        new() { Symbol = "MARUTI.NS", Name = "Maruti Suzuki India Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 12450.00m, Currency = "INR" },
+        new() { Symbol = "TITAN.NS", Name = "Titan Company Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 3280.00m, Currency = "INR" },
+        new() { Symbol = "ZOMATO.NS", Name = "Zomato Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 265.00m, Currency = "INR" },
+        new() { Symbol = "JIOFIN.NS", Name = "Jio Financial Services Ltd", Category = "National Stock", AssetType = "Stocks & Equity", Exchange = "NSE", CurrentPrice = 315.00m, Currency = "INR" },
+
+        // International Stocks (US / Global - NASDAQ / NYSE)
+        new() { Symbol = "AAPL", Name = "Apple Inc.", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 230.50m, Currency = "USD" },
+        new() { Symbol = "MSFT", Name = "Microsoft Corporation", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 428.00m, Currency = "USD" },
+        new() { Symbol = "GOOGL", Name = "Alphabet Inc. (Google)", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 168.00m, Currency = "USD" },
+        new() { Symbol = "AMZN", Name = "Amazon.com Inc.", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 186.00m, Currency = "USD" },
+        new() { Symbol = "NVDA", Name = "NVIDIA Corporation", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 140.00m, Currency = "USD" },
+        new() { Symbol = "META", Name = "Meta Platforms Inc.", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 585.00m, Currency = "USD" },
+        new() { Symbol = "TSLA", Name = "Tesla Inc.", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NASDAQ", CurrentPrice = 260.00m, Currency = "USD" },
+        new() { Symbol = "BRK-B", Name = "Berkshire Hathaway Inc.", Category = "International Stock", AssetType = "Stocks & Equity", Exchange = "NYSE", CurrentPrice = 455.00m, Currency = "USD" },
+
+        // ETFs & Gold & Commodities
+        new() { Symbol = "GOLDBEES.NS", Name = "Nippon India ETF Gold BeES", Category = "Gold & Commodities", AssetType = "Gold & Commodities", Exchange = "NSE", CurrentPrice = 72.50m, Currency = "INR" },
+        new() { Symbol = "SILVERBEES.NS", Name = "Nippon India ETF Silver BeES", Category = "Gold & Commodities", AssetType = "Gold & Commodities", Exchange = "NSE", CurrentPrice = 88.00m, Currency = "INR" },
+        new() { Symbol = "NIFTYBEES.NS", Name = "Nippon India ETF Nifty 50 BeES", Category = "ETF", AssetType = "ETF", Exchange = "NSE", CurrentPrice = 265.20m, Currency = "INR" },
+        new() { Symbol = "MON100.NS", Name = "Motilal Oswal Nasdaq 100 ETF", Category = "ETF", AssetType = "ETF", Exchange = "NSE", CurrentPrice = 165.00m, Currency = "INR" },
+        new() { Symbol = "MASPTOP50.NS", Name = "Mirae Asset S&P 500 Top 50 ETF", Category = "ETF", AssetType = "ETF", Exchange = "NSE", CurrentPrice = 52.00m, Currency = "INR" },
+        new() { Symbol = "CPSEETF.NS", Name = "CPSE ETF", Category = "ETF", AssetType = "ETF", Exchange = "NSE", CurrentPrice = 94.50m, Currency = "INR" }
+    };
+
+    public async Task<List<FinanceTrackerAPI.DTOs.Investments.InstrumentSearchResultDto>> SearchAllInstrumentsAsync(
+        string query,
+        string? category = null,
+        CancellationToken ct = default)
+    {
+        var cleanQ = query?.Trim() ?? string.Empty;
+        var results = new List<FinanceTrackerAPI.DTOs.Investments.InstrumentSearchResultDto>();
+
+        // 1. Filter local master instruments
+        var matches = MasterInstruments.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(cleanQ))
+        {
+            matches = matches.Where(i =>
+                i.Symbol.Contains(cleanQ, StringComparison.OrdinalIgnoreCase) ||
+                i.Name.Contains(cleanQ, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            matches = matches.Where(i => i.Category.Contains(category, StringComparison.OrdinalIgnoreCase) ||
+                                         i.AssetType.Contains(category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        results.AddRange(matches.Take(15));
+
+        // 2. Query AMFI Mutual Funds live API if query length >= 2
+        if (cleanQ.Length >= 2 && (string.IsNullOrWhiteSpace(category) || category.Contains("fund", StringComparison.OrdinalIgnoreCase)))
+        {
+            var mfMatches = await SearchMutualFundsAsync(cleanQ, ct);
+            foreach (var mf in mfMatches.Take(10))
+            {
+                results.Add(new FinanceTrackerAPI.DTOs.Investments.InstrumentSearchResultDto
+                {
+                    Symbol = mf.SchemeCode.ToString(),
+                    Name = mf.SchemeName,
+                    Category = "Mutual Fund",
+                    AssetType = "Mutual fund",
+                    Exchange = "AMFI",
+                    Currency = "INR"
+                });
+            }
+        }
+
+        return results;
+    }
     private readonly HttpClient _httpClient;
     private readonly ILogger<MarketDataService> _logger;
 

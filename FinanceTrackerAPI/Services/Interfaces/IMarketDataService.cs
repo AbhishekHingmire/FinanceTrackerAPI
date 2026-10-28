@@ -24,4 +24,5 @@ public interface IMarketDataService
     Task<MarketQuoteDto?> GetQuoteAsync(string symbolOrQuery, string? instrumentType = null, CancellationToken ct = default);
     Task<List<MutualFundSearchResultDto>> SearchMutualFundsAsync(string query, CancellationToken ct = default);
     Task<decimal?> GetMutualFundNavAsync(long schemeCode, CancellationToken ct = default);
+    Task<List<FinanceTrackerAPI.DTOs.Investments.InstrumentSearchResultDto>> SearchAllInstrumentsAsync(string query, string? category = null, CancellationToken ct = default);
 }

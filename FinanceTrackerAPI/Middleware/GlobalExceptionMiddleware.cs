@@ -3,6 +3,7 @@ namespace FinanceTrackerAPI.Middleware;
 using System.Net;
 using System.Text.Json;
 using FinanceTrackerAPI.DTOs.Common;
+using FinanceTrackerAPI.Services.Interfaces;
 
 public class GlobalExceptionMiddleware
 {
@@ -17,7 +18,7 @@ public class GlobalExceptionMiddleware
         _env = env;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, IErrorLogService errorLogService)
     {
         try
         {
@@ -26,6 +27,10 @@ public class GlobalExceptionMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception occurred during request execution: {Path}", context.Request.Path);
+
+            // Persist full exception details to ErrorLogs table with UserId, Controller, Action, and StackTrace
+            await errorLogService.LogExceptionAsync(ex, context);
+
             await HandleExceptionAsync(context, ex);
         }
     }

@@ -22,7 +22,7 @@ public class JwtTokenService : IJwtTokenService
         _secretKey = _configuration["Jwt:SecretKey"] ?? "WealthTrackSuperSecretKey_ProductionGrade_256BitsMinLength_2026";
         _issuer = _configuration["Jwt:Issuer"] ?? "WealthTrackAPI";
         _audience = _configuration["Jwt:Audience"] ?? "WealthTrackClient";
-        _expiryMinutes = int.TryParse(_configuration["Jwt:ExpiryMinutes"], out var min) ? min : 60;
+        _expiryMinutes = int.TryParse(_configuration["Jwt:ExpiryMinutes"], out var min) ? min : 4320; // 72 hours (4320 minutes)
     }
 
     public (string Token, DateTimeOffset ExpiresAt) GenerateAccessToken(User user)

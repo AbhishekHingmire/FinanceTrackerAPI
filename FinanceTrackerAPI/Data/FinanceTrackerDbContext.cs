@@ -19,6 +19,7 @@ public class FinanceTrackerDbContext : DbContext
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<UserProfileTargets> ProfileTargets => Set<UserProfileTargets>();
     public DbSet<UserWealthPreferences> WealthPreferences => Set<UserWealthPreferences>();
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -222,6 +223,27 @@ public class FinanceTrackerDbContext : DbContext
                 .WithOne(u => u.WealthPreferences)
                 .HasForeignKey<UserWealthPreferences>(w => w.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ErrorLog
+        modelBuilder.Entity<ErrorLog>(b =>
+        {
+            b.HasKey(e => e.Id);
+            b.Property(e => e.LogLevel).HasMaxLength(50).IsRequired();
+            b.Property(e => e.ControllerName).HasMaxLength(100);
+            b.Property(e => e.MethodName).HasMaxLength(100);
+            b.Property(e => e.ExceptionType).HasMaxLength(255);
+            b.Property(e => e.ExceptionMessage).IsRequired();
+            b.Property(e => e.RequestPath).HasMaxLength(500);
+            b.Property(e => e.HttpMethod).HasMaxLength(20);
+            b.Property(e => e.IpAddress).HasMaxLength(100);
+            b.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            b.HasIndex(e => e.Timestamp);
+            b.HasIndex(e => e.UserId);
+            b.HasIndex(e => e.ControllerName);
         });
     }
 }

@@ -13,6 +13,7 @@ public class AuthService : IAuthService
     private readonly FinanceTrackerDbContext _dbContext;
     private readonly IOtpService _otpService;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly ISmsService _smsService;
     private readonly ILogger<AuthService> _logger;
     private const int RefreshTokenExpiryDays = 30;
 
@@ -20,11 +21,13 @@ public class AuthService : IAuthService
         FinanceTrackerDbContext dbContext,
         IOtpService otpService,
         IJwtTokenService jwtTokenService,
+        ISmsService smsService,
         ILogger<AuthService> logger)
     {
         _dbContext = dbContext;
         _otpService = otpService;
         _jwtTokenService = jwtTokenService;
+        _smsService = smsService;
         _logger = logger;
     }
 
@@ -40,18 +43,30 @@ public class AuthService : IAuthService
 
         var (otpCode, expiresAt) = await _otpService.GenerateAndStoreOtpAsync(normalizedMobile, purpose, ct);
 
+        // Dispatch OTP via Textplate Real SMS Gateway
+        var smsResult = await _smsService.SendOtpSmsAsync(normalizedMobile, otpCode, ct);
+        if (!smsResult.Success)
+        {
+            _logger.LogWarning("SMS dispatch failed for mobile {Mobile}: {Error}", normalizedMobile, smsResult.Message);
+            return ApiResponse<SendOtpResponseDto>.FailureResult(smsResult.Message);
+        }
+
         var response = new SendOtpResponseDto
         {
             MobileNumber = normalizedMobile,
             ExpiresInSeconds = (int)(expiresAt - DateTimeOffset.UtcNow).TotalSeconds,
             IsRegisteredUser = isRegistered,
-            // Returned for web UI testing as requested; will be suppressed when SMS gateway is attached
-            TestOtp = otpCode
+            // Per instructions: Once SMS gateway is integrated, do not expose OTP to the web application
+            TestOtp = null
         };
 
+        var maskedMobile = normalizedMobile.Length >= 4
+            ? $"{normalizedMobile[..2]}******{normalizedMobile[^2..]}"
+            : normalizedMobile;
+
         var message = isRegistered
-            ? "Login OTP generated successfully."
-            : "Signup OTP generated successfully.";
+            ? $"Login OTP sent to {maskedMobile} via SMS."
+            : $"Signup OTP sent to {maskedMobile} via SMS.";
 
         return ApiResponse<SendOtpResponseDto>.SuccessResult(response, message);
     }
@@ -312,21 +327,6 @@ public class AuthService : IAuthService
 
     private void SeedUserDefaultCategories(Guid userId)
     {
-        var presets = new List<Category>
-        {
-            new() { UserId = userId, Name = "Food & dining", Kind = EntryKind.Expense, Icon = "🍽️", Color = "rose", MonthlyCap = 1200000, DefaultNeedWant = NeedWant.Need },
-            new() { UserId = userId, Name = "Housing & Rent", Kind = EntryKind.Expense, Icon = "🏠", Color = "blue", MonthlyCap = 2500000, DefaultNeedWant = NeedWant.Need },
-            new() { UserId = userId, Name = "Transport & Fuel", Kind = EntryKind.Expense, Icon = "🚗", Color = "teal", MonthlyCap = 600000, DefaultNeedWant = NeedWant.Need },
-            new() { UserId = userId, Name = "Shopping & Personal", Kind = EntryKind.Expense, Icon = "🛍️", Color = "violet", MonthlyCap = 800000, DefaultNeedWant = NeedWant.Want },
-            new() { UserId = userId, Name = "Bills & Utilities", Kind = EntryKind.Expense, Icon = "💡", Color = "amber", MonthlyCap = 700000, DefaultNeedWant = NeedWant.Need },
-            new() { UserId = userId, Name = "Healthcare", Kind = EntryKind.Expense, Icon = "🏥", Color = "green", MonthlyCap = 500000, DefaultNeedWant = NeedWant.Need },
-            new() { UserId = userId, Name = "Entertainment", Kind = EntryKind.Expense, Icon = "🎬", Color = "pink", MonthlyCap = 400000, DefaultNeedWant = NeedWant.Want },
-            new() { UserId = userId, Name = "Salary", Kind = EntryKind.Income, Icon = "💼", Color = "green", MonthlyCap = null },
-            new() { UserId = userId, Name = "Freelance & Consulting", Kind = EntryKind.Income, Icon = "💻", Color = "blue", MonthlyCap = null },
-            new() { UserId = userId, Name = "Dividends & Returns", Kind = EntryKind.Income, Icon = "📈", Color = "teal", MonthlyCap = null },
-            new() { UserId = userId, Name = "Loan EMI & Debt", Kind = EntryKind.Expense, Icon = "💳", Color = "rose", MonthlyCap = 4500000, DefaultNeedWant = NeedWant.Need }
-        };
-
-        _dbContext.Categories.AddRange(presets);
+        _dbContext.Categories.AddRange(CategoryDefaults.GetDefaultCategories(userId));
     }
 }

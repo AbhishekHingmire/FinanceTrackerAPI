@@ -25,10 +25,17 @@ public class CategoriesController : BaseApiController
     {
         var userId = GetUserId();
         var categories = await _dbContext.Categories
-            .AsNoTracking()
             .Where(c => c.UserId == userId || c.UserId == null)
             .OrderBy(c => c.Name)
             .ToListAsync(ct);
+
+        if (!categories.Any())
+        {
+            var presets = CategoryDefaults.GetDefaultCategories(userId);
+            _dbContext.Categories.AddRange(presets);
+            await _dbContext.SaveChangesAsync(ct);
+            categories = presets;
+        }
 
         var dtos = categories.Select(MapToDto).ToList();
         return Ok(ApiResponse<List<CategoryDto>>.SuccessResult(dtos));

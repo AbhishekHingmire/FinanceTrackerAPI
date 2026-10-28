@@ -77,6 +77,7 @@ public class InvestmentsController : BaseApiController
             StartDate = startDate,
             HasSip = dto.IsRecurring,
             SipAmount = dto.SipAmount.HasValue ? (long)(dto.SipAmount.Value * 100) : null,
+            SipDay = dto.SipDay,
             SipFromAccountId = dto.SipAccountId,
             SipActive = dto.Status == "Active",
             Notes = dto.Notes
@@ -107,6 +108,7 @@ public class InvestmentsController : BaseApiController
         holding.CurrentValue = (long)(dto.CurrentAmount * 100);
         holding.HasSip = dto.IsRecurring;
         holding.SipAmount = dto.SipAmount.HasValue ? (long)(dto.SipAmount.Value * 100) : null;
+        holding.SipDay = dto.SipDay;
         holding.SipFromAccountId = dto.SipAccountId;
         holding.SipActive = dto.Status == "Active";
         holding.Notes = dto.Notes;
@@ -216,6 +218,7 @@ public class InvestmentsController : BaseApiController
         UpdatedAt = DateTimeOffset.UtcNow.ToString("o"),
         IsRecurring = h.HasSip,
         SipAmount = (h.SipAmount ?? 0) / 100m,
+        SipDay = h.SipDay,
         SipAccountId = h.SipFromAccountId?.ToString(),
         Status = h.SipActive ? "Active" : "Paused"
     };

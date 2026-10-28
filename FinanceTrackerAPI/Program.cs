@@ -13,9 +13,20 @@ using FinanceTrackerAPI.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Build SQL Server Connection String with Secure Password from User Secrets / Environment Variables
-var baseConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=127.0.0.1,1433;Initial Catalog=FinanceTrackerDb;Persist Security Info=True;User ID=sa;Pooling=False;MultipleActiveResultSets=False;Connect Timeout=30;Encrypt=True;TrustServerCertificate=True;Command Timeout=0";
+// 1. Build SQL Server Connection String with Multi-Source Priority:
+// 1) MonsterASP / RunASP env var override (DefaultConnection_ConnectionStrings or ConnectionStrings__DefaultConnection)
+// 2) Standard ASP.NET Core Configuration.GetConnectionString("DefaultConnection")
+// 3) Local development SQL Server instance
+var envConnString = Environment.GetEnvironmentVariable("DefaultConnection_ConnectionStrings")
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings__Default")
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings_DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+var baseConnectionString = !string.IsNullOrWhiteSpace(envConnString)
+    ? envConnString
+    : "Data Source=127.0.0.1,1433;Initial Catalog=FinanceTrackerDb;Persist Security Info=True;User ID=sa;Pooling=False;MultipleActiveResultSets=False;Connect Timeout=30;Encrypt=True;TrustServerCertificate=True;Command Timeout=0";
 
 // Check if password is provided in User Secrets, Environment, or Configuration
 var dbPassword = builder.Configuration["Database:Password"]
@@ -109,7 +120,8 @@ builder.Services.AddCors(options =>
                 "http://127.0.0.1:5173",
                 "http://localhost:3000",
                 "http://localhost:4173",
-                "http://localhost:8080")
+                "http://localhost:8080",
+                "https://onefinancetracker.vercel.apps")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

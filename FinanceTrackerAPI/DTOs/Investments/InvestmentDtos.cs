@@ -19,6 +19,8 @@ public class InvestmentHoldingDto
     public decimal? SipAmount { get; set; }
     public string? SipFrequency { get; set; }
     public string? SipAccountId { get; set; }
+    public int? SipDay { get; set; }
+    public string? InvestmentStyle { get; set; }
     public string? Status { get; set; } = "Active";
 }
 
@@ -50,6 +52,8 @@ public class CreateInvestmentDto
     public decimal? SipAmount { get; set; }
     public string? SipFrequency { get; set; }
     public Guid? SipAccountId { get; set; }
+    public int? SipDay { get; set; }
+    public string? InvestmentStyle { get; set; }
     public string? Status { get; set; } = "Active";
 }
 

@@ -1,8 +1,10 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using FinanceTrackerAPI.Data;
 using FinanceTrackerAPI.DTOs.Common;
 using FinanceTrackerAPI.Middleware;
@@ -110,12 +112,63 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "WealthTrack Finance API",
+        Version = "v1",
+        Description = "Enterprise .NET 10 Web API for WealthTrack Personal Finance with JWT Bearer Authentication and SQL Server 2022 backend.",
+        Contact = new OpenApiContact
+        {
+            Name = "WealthTrack Engineering Team"
+        }
+    });
+
+    // Support Bearer Token in Swagger UI
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT Bearer token (without 'Bearer ' prefix). Example: eyJhbGciOiJIUzI1NiIsIn..."
+    });
+
+    options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecuritySchemeReference("Bearer", doc),
+            new List<string>()
+        }
+    });
+
+    // Include XML Documentation Comments if file exists
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+});
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 // 5. Middleware Pipeline
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// Enable Swagger in Development and Local environments
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "WealthTrack API v1");
+    c.RoutePrefix = "swagger";
+    c.DisplayRequestDuration();
+    c.EnableTryItOutByDefault();
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -126,6 +179,9 @@ app.UseCors("WealthTrackCors");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Redirect root / to /swagger for instant access
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.MapControllers();
 

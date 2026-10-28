@@ -49,7 +49,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Verifies the 6-digit OTP and authenticates the user, issuing JWT access & refresh tokens.
+    /// Verifies the 6-digit OTP and authenticates the user, issuing JWT access and refresh tokens.
     /// Signs up new users automatically or logs in existing users.
     /// </summary>
     [HttpPost("verify-otp")]

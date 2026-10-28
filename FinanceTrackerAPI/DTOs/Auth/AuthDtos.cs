@@ -35,6 +35,7 @@ public class VerifyOtpRequestDto
     // Optional on login, mandatory on new user signup
     public string? FullName { get; set; }
     public string? Email { get; set; }
+    public string? Purpose { get; set; } // "login" or "signup"
 }
 
 public class UserDto

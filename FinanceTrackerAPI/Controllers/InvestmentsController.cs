@@ -1,5 +1,6 @@
 namespace FinanceTrackerAPI.Controllers;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FinanceTrackerAPI.Data;
@@ -7,15 +8,21 @@ using FinanceTrackerAPI.DTOs.Common;
 using FinanceTrackerAPI.DTOs.Investments;
 using FinanceTrackerAPI.Entities;
 using FinanceTrackerAPI.Enums;
+using FinanceTrackerAPI.Services.Interfaces;
 
 public class InvestmentsController : BaseApiController
 {
     private readonly FinanceTrackerDbContext _dbContext;
+    private readonly IMarketDataService _marketDataService;
     private readonly ILogger<InvestmentsController> _logger;
 
-    public InvestmentsController(FinanceTrackerDbContext dbContext, ILogger<InvestmentsController> logger)
+    public InvestmentsController(
+        FinanceTrackerDbContext dbContext,
+        IMarketDataService marketDataService,
+        ILogger<InvestmentsController> logger)
     {
         _dbContext = dbContext;
+        _marketDataService = marketDataService;
         _logger = logger;
     }
 
@@ -124,6 +131,54 @@ public class InvestmentsController : BaseApiController
         _dbContext.Holdings.Remove(holding);
         await _dbContext.SaveChangesAsync(ct);
         return Ok(ApiResponse<bool>.SuccessResult(true, "Holding deleted"));
+    }
+
+    /// <summary>
+    /// Fetches live accurate market price or NAV for any stock (e.g. RELIANCE, TCS, INFY) or Mutual Fund.
+    /// </summary>
+    [HttpGet("quote")]
+    [ProducesResponseType(typeof(ApiResponse<MarketQuoteDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetQuote([FromQuery] string query, [FromQuery] string? type = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return BadRequest(ApiResponse<object>.FailureResult("Query/symbol is required"));
+        }
+
+        var quote = await _marketDataService.GetQuoteAsync(query, type, ct);
+        if (quote == null)
+        {
+            return NotFound(ApiResponse<object>.FailureResult($"No live quote found for '{query}'"));
+        }
+
+        return Ok(ApiResponse<MarketQuoteDto>.SuccessResult(quote));
+    }
+
+    /// <summary>
+    /// Searches Indian Mutual Funds registered with AMFI via the official public directory.
+    /// </summary>
+    [HttpGet("mutual-funds/search")]
+    [ProducesResponseType(typeof(ApiResponse<List<MutualFundSearchResultDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchMutualFunds([FromQuery] string query, CancellationToken ct = default)
+    {
+        var results = await _marketDataService.SearchMutualFundsAsync(query, ct);
+        return Ok(ApiResponse<List<MutualFundSearchResultDto>>.SuccessResult(results));
+    }
+
+    /// <summary>
+    /// Retrieves the official live NAV for a Mutual Fund by AMFI Scheme Code.
+    /// </summary>
+    [HttpGet("mutual-funds/{schemeCode:long}/nav")]
+    [ProducesResponseType(typeof(ApiResponse<decimal>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMutualFundNav(long schemeCode, CancellationToken ct = default)
+    {
+        var nav = await _marketDataService.GetMutualFundNavAsync(schemeCode, ct);
+        if (!nav.HasValue)
+        {
+            return NotFound(ApiResponse<object>.FailureResult("NAV not available for this scheme code"));
+        }
+
+        return Ok(ApiResponse<decimal>.SuccessResult(nav.Value));
     }
 
     private static InvestmentHoldingDto MapToDto(Holding h) => new()

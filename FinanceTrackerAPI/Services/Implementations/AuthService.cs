@@ -39,8 +39,24 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.MobileNumber == normalizedMobile, ct);
 
         var isRegistered = existingUser != null;
-        var purpose = isRegistered ? OtpPurpose.Login : OtpPurpose.Signup;
+        var isLoginRequest = request.Purpose?.Equals("login", StringComparison.OrdinalIgnoreCase) == true;
+        var isSignupRequest = request.Purpose?.Equals("signup", StringComparison.OrdinalIgnoreCase) == true;
 
+        // Strict business validation: Only registered users can request a login OTP
+        if (isLoginRequest && !isRegistered)
+        {
+            return ApiResponse<SendOtpResponseDto>.FailureResult(
+                $"No registered account found with mobile number +91 {normalizedMobile}. Please switch to Sign Up to create an account.");
+        }
+
+        // Only new users can request a signup OTP
+        if (isSignupRequest && isRegistered)
+        {
+            return ApiResponse<SendOtpResponseDto>.FailureResult(
+                $"An account is already registered with mobile number +91 {normalizedMobile}. Please switch to Sign In.");
+        }
+
+        var purpose = isRegistered ? OtpPurpose.Login : OtpPurpose.Signup;
         var (otpCode, expiresAt) = await _otpService.GenerateAndStoreOtpAsync(normalizedMobile, purpose, ct);
 
         // Dispatch OTP via Textplate Real SMS Gateway
@@ -90,6 +106,12 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.MobileNumber == normalizedMobile, ct);
 
         var isNewUser = false;
+
+        var isLogin = request.Purpose?.Equals("login", StringComparison.OrdinalIgnoreCase) == true;
+        if (isLogin && user == null)
+        {
+            return ApiResponse<AuthResponseDto>.FailureResult("No registered account found for this mobile number. Please sign up first.");
+        }
 
         if (user == null)
         {

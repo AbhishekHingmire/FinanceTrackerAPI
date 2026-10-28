@@ -47,6 +47,7 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ISmsService, TextplateSmsService>();
 builder.Services.AddScoped<IErrorLogService, ErrorLogService>();
+builder.Services.AddScoped<IMarketDataService, MarketDataService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // 3. Configure JWT Authentication & Authorization

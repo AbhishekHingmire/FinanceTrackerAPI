@@ -32,8 +32,7 @@ public class CreateRecurringDto
     [Range(0.01, 1000000000)]
     public decimal Amount { get; set; }
 
-    [Required]
-    public Guid CategoryId { get; set; }
+    public Guid? CategoryId { get; set; }
 
     [Required]
     public Guid AccountId { get; set; }

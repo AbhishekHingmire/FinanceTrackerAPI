@@ -53,17 +53,48 @@ public class RecurringController : BaseApiController
 
         var nextDate = DateOnly.TryParse(dto.NextDate.Split('T')[0], out var nd) ? nd : DateOnly.FromDateTime(DateTime.UtcNow);
 
+        var subtype = dto.Type switch
+        {
+            "Investment" => EntrySubtype.Sip,
+            _ => (!string.IsNullOrWhiteSpace(dto.LoanId) ? EntrySubtype.Emi : EntrySubtype.None)
+        };
+
+        // Resolve CategoryId safely
+        Guid resolvedCategoryId;
+        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty &&
+            await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+        {
+            resolvedCategoryId = dto.CategoryId.Value;
+        }
+        else
+        {
+            var cat = await _dbContext.Categories
+                .Where(c => c.UserId == userId)
+                .OrderBy(c => c.Name)
+                .FirstOrDefaultAsync(ct);
+
+            if (cat == null)
+            {
+                var defaults = CategoryDefaults.GetDefaultCategories(userId);
+                _dbContext.Categories.AddRange(defaults);
+                await _dbContext.SaveChangesAsync(ct);
+                cat = defaults.First();
+            }
+            resolvedCategoryId = cat.Id;
+        }
+
         var schedule = new Schedule
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             Name = dto.Name.Trim(),
             Kind = dto.Type == "Income" ? EntryKind.Income : EntryKind.Expense,
+            Subtype = subtype,
             Amount = (long)(dto.Amount * 100),
             Frequency = freq,
             NextDate = nextDate,
             AccountId = dto.AccountId,
-            CategoryId = dto.CategoryId,
+            CategoryId = resolvedCategoryId,
             Active = dto.Enabled,
             NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need
         };
@@ -89,9 +120,17 @@ public class RecurringController : BaseApiController
 
         schedule.Name = dto.Name.Trim();
         schedule.Kind = dto.Type == "Income" ? EntryKind.Income : EntryKind.Expense;
+        schedule.Subtype = dto.Type switch
+        {
+            "Investment" => EntrySubtype.Sip,
+            _ => (!string.IsNullOrWhiteSpace(dto.LoanId) ? EntrySubtype.Emi : schedule.Subtype)
+        };
         schedule.Amount = (long)(dto.Amount * 100);
         schedule.AccountId = dto.AccountId;
-        schedule.CategoryId = dto.CategoryId;
+        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
+        {
+            schedule.CategoryId = dto.CategoryId.Value;
+        }
         schedule.Active = dto.Enabled;
         schedule.NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need;
 
@@ -199,7 +238,7 @@ public class RecurringController : BaseApiController
     {
         Id = s.Id,
         Name = s.Name,
-        Type = s.Kind == EntryKind.Income ? "Income" : "Expense",
+        Type = s.Subtype == EntrySubtype.Sip ? "Investment" : (s.Kind == EntryKind.Income ? "Income" : "Expense"),
         Amount = s.Amount / 100m,
         CategoryId = s.CategoryId,
         AccountId = s.AccountId,

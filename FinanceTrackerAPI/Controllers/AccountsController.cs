@@ -185,29 +185,19 @@ public class AccountsController : BaseApiController
             return Ok(ApiResponse<TransactionDto?>.SuccessResult(null, "Account balance is already balanced"));
         }
 
-        var isPositive = diffPaise > 0;
-        var entry = new Entry
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Date = DateOnly.FromDateTime(DateTime.UtcNow),
-            Kind = isPositive ? EntryKind.Income : EntryKind.Expense,
-            Subtype = EntrySubtype.None,
-            Amount = Math.Abs(diffPaise),
-            AccountId = id,
-            Note = string.IsNullOrWhiteSpace(dto.Notes) ? $"Reconciliation adjustment for {account.Name}" : dto.Notes.Trim(),
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        _dbContext.Entries.Add(entry);
+        // Direct update of account opening balance as requested
+        // Opening balance is updated so that (OpeningBalance + existing entries net) equals targetPaise
+        var netEntriesPaise = currentPaise - account.OpeningBalance;
+        account.OpeningBalance = targetPaise - netEntriesPaise;
+        account.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync(ct);
 
         return Ok(ApiResponse<TransactionDto>.SuccessResult(new TransactionDto
         {
-            Id = entry.Id,
+            Id = Guid.NewGuid(),
             Date = DateTimeOffset.UtcNow.ToString("o"),
-            Description = entry.Note,
-            Type = isPositive ? "Income" : "Expense",
+            Description = string.IsNullOrWhiteSpace(dto.Notes) ? $"Reconciliation for {account.Name}" : dto.Notes.Trim(),
+            Type = "Adjustment",
             Amount = Math.Abs(diffPaise) / 100m,
             AccountId = id,
             PaymentMethod = "Adjustment"

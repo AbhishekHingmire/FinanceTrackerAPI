@@ -1,0 +1,67 @@
+@FinanceTrackerAPI_HostAddress = http://localhost:5252
+
+### 1. Send OTP for Registration / Signup
+POST {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/send-otp
+Content-Type: application/json
+Accept: application/json
+
+{
+  "mobileNumber": "9876543210",
+  "purpose": "signup"
+}
+
+### 2. Verify OTP and Complete Registration
+POST {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/verify-otp
+Content-Type: application/json
+Accept: application/json
+
+{
+  "mobileNumber": "9876543210",
+  "otp": "PASTE_OTP_HERE",
+  "fullName": "Abhishek Hingmire",
+  "email": "abhishek@wealthtrack.app"
+}
+
+### 3. Send OTP for Login
+POST {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/send-otp
+Content-Type: application/json
+Accept: application/json
+
+{
+  "mobileNumber": "9876543210",
+  "purpose": "login"
+}
+
+### 4. Verify OTP for Login
+POST {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/verify-otp
+Content-Type: application/json
+Accept: application/json
+
+{
+  "mobileNumber": "9876543210",
+  "otp": "PASTE_OTP_HERE"
+}
+
+### 5. Get Current User Profile (Requires Bearer Token)
+GET {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/me
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Accept: application/json
+
+### 6. Refresh Token
+POST {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/refresh-token
+Content-Type: application/json
+Accept: application/json
+
+{
+  "refreshToken": "PASTE_REFRESH_TOKEN_HERE"
+}
+
+### 7. Logout
+POST {{FinanceTrackerAPI_HostAddress}}/api/v1/auth/logout
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+Accept: application/json
+
+{
+  "refreshToken": "PASTE_REFRESH_TOKEN_HERE"
+}

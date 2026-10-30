@@ -739,6 +739,9 @@ namespace FinanceTrackerAPI.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("SalaryDay")
+                        .HasColumnType("int");
+
                     b.Property<string>("Theme")
                         .IsRequired()
                         .HasMaxLength(20)

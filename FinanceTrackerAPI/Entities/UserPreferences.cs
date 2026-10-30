@@ -31,6 +31,7 @@ public class UserWealthPreferences
     public Guid? DefaultAccountId { get; set; }
     public string DefaultType { get; set; } = "Expense";
     public string DefaultPaymentMethod { get; set; } = "UPI";
+    public int? SalaryDay { get; set; }
     
     public bool AlertEmiSip3Days { get; set; } = true;
     public bool AlertBalanceShortWarning { get; set; } = true;

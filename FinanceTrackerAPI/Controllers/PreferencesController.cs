@@ -42,6 +42,7 @@ public class PreferencesController : BaseApiController
             DefaultType = w?.DefaultType ?? "Expense",
             DefaultAccount = w?.DefaultAccountId?.ToString() ?? string.Empty,
             DefaultPaymentMethod = w?.DefaultPaymentMethod ?? "UPI",
+            SalaryDay = w?.SalaryDay ?? 1,
             RecurringReminders = w?.AlertEmiSip3Days ?? true,
             BudgetReminders = w?.AlertBudget90Percent ?? true
         };
@@ -79,6 +80,7 @@ public class PreferencesController : BaseApiController
         if (!string.IsNullOrWhiteSpace(dto.Theme)) user.WealthPreferences.Theme = dto.Theme.Trim();
         if (!string.IsNullOrWhiteSpace(dto.DefaultType)) user.WealthPreferences.DefaultType = dto.DefaultType.Trim();
         if (!string.IsNullOrWhiteSpace(dto.DefaultPaymentMethod)) user.WealthPreferences.DefaultPaymentMethod = dto.DefaultPaymentMethod.Trim();
+        if (dto.SalaryDay.HasValue && dto.SalaryDay.Value >= 1 && dto.SalaryDay.Value <= 31) user.WealthPreferences.SalaryDay = dto.SalaryDay.Value;
         if (dto.RecurringReminders.HasValue) user.WealthPreferences.AlertEmiSip3Days = dto.RecurringReminders.Value;
         if (dto.BudgetReminders.HasValue) user.WealthPreferences.AlertBudget90Percent = dto.BudgetReminders.Value;
 
@@ -100,6 +102,7 @@ public class PreferencesController : BaseApiController
             DefaultType = user.WealthPreferences.DefaultType,
             DefaultAccount = user.WealthPreferences.DefaultAccountId?.ToString() ?? string.Empty,
             DefaultPaymentMethod = user.WealthPreferences.DefaultPaymentMethod,
+            SalaryDay = user.WealthPreferences.SalaryDay ?? 1,
             RecurringReminders = user.WealthPreferences.AlertEmiSip3Days,
             BudgetReminders = user.WealthPreferences.AlertBudget90Percent
         }, "Preferences updated"));

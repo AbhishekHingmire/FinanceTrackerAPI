@@ -46,8 +46,8 @@ public class CreateLoanDto
     [Range(1, 100000000)]
     public decimal EmiAmount { get; set; }
 
-    [Required]
-    public Guid RepaymentAccountId { get; set; }
+    // Account optional - for pure expense tracking mode, defaulted by controller if omitted
+    public Guid? RepaymentAccountId { get; set; }
 
     [Required]
     public string StartDate { get; set; } = string.Empty;
@@ -73,8 +73,8 @@ public class RecordLoanPaymentDto
     [Range(1, 100000000)]
     public decimal Amount { get; set; }
 
-    [Required]
-    public Guid AccountId { get; set; }
+    // Account optional - for pure expense tracking mode, defaulted by controller if omitted
+    public Guid? AccountId { get; set; }
 
     public string Date { get; set; } = string.Empty;
 

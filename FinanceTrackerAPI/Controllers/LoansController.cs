@@ -71,6 +71,38 @@ public class LoansController : BaseApiController
 
         var startDate = DateOnly.TryParse(dto.StartDate.Split('T')[0], out var s) ? s : DateOnly.FromDateTime(DateTime.UtcNow);
 
+        // Resolve AccountId safely for pure expense tracking mode
+        Guid resolvedAccountId;
+        if (dto.RepaymentAccountId.HasValue && dto.RepaymentAccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.RepaymentAccountId.Value && a.UserId == userId, ct))
+        {
+            resolvedAccountId = dto.RepaymentAccountId.Value;
+        }
+        else
+        {
+            var acc = await _dbContext.Accounts
+                .Where(a => a.UserId == userId)
+                .OrderBy(a => a.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (acc == null)
+            {
+                acc = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Name = "General",
+                    Type = AccountType.Bank,
+                    OpeningBalance = 0,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                _dbContext.Accounts.Add(acc);
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            resolvedAccountId = acc.Id;
+        }
+
         var loan = new Loan
         {
             Id = Guid.NewGuid(),
@@ -85,7 +117,7 @@ public class LoansController : BaseApiController
             Emi = (long)(dto.EmiAmount * 100),
             EmiDay = startDate.Day,
             StartDate = startDate,
-            PayFromAccountId = dto.RepaymentAccountId,
+            PayFromAccountId = resolvedAccountId,
             AutoPost = dto.AutoRecurringEmi,
             OpeningInstallmentsPaid = dto.PaidEmisCount,
             Notes = dto.Notes
@@ -120,7 +152,11 @@ public class LoansController : BaseApiController
         loan.Rate = dto.InterestRate;
         loan.Tenure = dto.TenureMonths;
         loan.Emi = (long)(dto.EmiAmount * 100);
-        loan.PayFromAccountId = dto.RepaymentAccountId;
+        if (dto.RepaymentAccountId.HasValue && dto.RepaymentAccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.RepaymentAccountId.Value && a.UserId == userId, ct))
+        {
+            loan.PayFromAccountId = dto.RepaymentAccountId.Value;
+        }
         loan.AutoPost = dto.AutoRecurringEmi;
         loan.OpeningInstallmentsPaid = dto.PaidEmisCount;
         loan.Notes = dto.Notes;
@@ -169,7 +205,46 @@ public class LoansController : BaseApiController
         }
 
         // Automatically record an Entry for this loan EMI
-        var dateOnly = DateOnly.TryParse(dto.Date.Split('T')[0], out var d) ? d : DateOnly.FromDateTime(DateTime.UtcNow);
+        Guid resolvedAccountId;
+        if (dto.AccountId.HasValue && dto.AccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.AccountId.Value && a.UserId == userId, ct))
+        {
+            resolvedAccountId = dto.AccountId.Value;
+        }
+        else if (loan.PayFromAccountId != Guid.Empty &&
+                 await _dbContext.Accounts.AnyAsync(a => a.Id == loan.PayFromAccountId && a.UserId == userId, ct))
+        {
+            resolvedAccountId = loan.PayFromAccountId;
+        }
+        else
+        {
+            var acc = await _dbContext.Accounts
+                .Where(a => a.UserId == userId)
+                .OrderBy(a => a.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (acc == null)
+            {
+                acc = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Name = "General",
+                    Type = AccountType.Bank,
+                    OpeningBalance = 0,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                _dbContext.Accounts.Add(acc);
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            resolvedAccountId = acc.Id;
+        }
+
+        var dateOnly = !string.IsNullOrWhiteSpace(dto.Date) && DateOnly.TryParse(dto.Date.Split('T')[0], out var d)
+            ? d
+            : DateOnly.FromDateTime(DateTime.UtcNow);
+
         var entry = new Entry
         {
             Id = Guid.NewGuid(),
@@ -178,7 +253,7 @@ public class LoansController : BaseApiController
             Kind = EntryKind.Expense,
             Subtype = EntrySubtype.Emi,
             Amount = paise,
-            AccountId = dto.AccountId,
+            AccountId = resolvedAccountId,
             Source = EntrySource.Loan,
             SourceId = loan.Id,
             Note = string.IsNullOrWhiteSpace(dto.Notes) ? $"{loan.Name} EMI Payment" : dto.Notes.Trim(),

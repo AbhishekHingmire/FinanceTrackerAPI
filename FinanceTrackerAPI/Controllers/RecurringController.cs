@@ -137,13 +137,84 @@ public class RecurringController : BaseApiController
         return Ok(ApiResponse<RecurringItemDto>.SuccessResult(MapToDto(schedule), "Recurring item created"));
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("{id}")]
     [ProducesResponseType(typeof(ApiResponse<RecurringItemDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> UpdateRecurring(Guid id, [FromBody] UpdateRecurringDto dto, CancellationToken ct)
+    public async Task<IActionResult> UpdateRecurring(string id, [FromBody] UpdateRecurringDto dto, CancellationToken ct)
     {
         var userId = GetUserId();
-        var schedule = await _dbContext.Schedules
-            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId, ct);
+        Guid? scheduleId = null;
+        Guid? loanId = null;
+
+        if (id.StartsWith("rec-loan-", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Guid.TryParse(id.Substring("rec-loan-".Length), out var plid))
+            {
+                loanId = plid;
+            }
+        }
+        else if (Guid.TryParse(id, out var parsedGuid))
+        {
+            scheduleId = parsedGuid;
+        }
+
+        Schedule? schedule = null;
+        if (scheduleId.HasValue)
+        {
+            schedule = await _dbContext.Schedules
+                .FirstOrDefaultAsync(s => s.Id == scheduleId.Value && s.UserId == userId, ct);
+        }
+
+        // If not found by Schedule ID, check if it matches a Loan ID or synthesized loan schedule
+        if (schedule == null && (loanId.HasValue || scheduleId.HasValue))
+        {
+            var targetLoanId = loanId ?? scheduleId!.Value;
+            var loan = await _dbContext.Loans.FirstOrDefaultAsync(l => l.Id == targetLoanId && l.UserId == userId, ct);
+            if (loan != null)
+            {
+                loan.Emi = (long)(dto.Amount * 100);
+                loan.AutoPost = dto.Enabled;
+                if (dto.AccountId.HasValue && dto.AccountId.Value != Guid.Empty)
+                {
+                    loan.PayFromAccountId = dto.AccountId.Value;
+                }
+
+                schedule = await _dbContext.Schedules
+                    .FirstOrDefaultAsync(s => s.UserId == userId && s.Subtype == EntrySubtype.Emi && s.Name.Contains(loan.Name), ct);
+
+                if (schedule == null)
+                {
+                    var nextDate = DateOnly.TryParse(dto.NextDate.Split('T')[0], out var ndVal) ? ndVal : DateOnly.FromDateTime(DateTime.UtcNow);
+                    
+                    Guid resolvedCatId;
+                    if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
+                    {
+                        resolvedCatId = dto.CategoryId.Value;
+                    }
+                    else
+                    {
+                        var defaultCat = await _dbContext.Categories.Where(c => c.UserId == userId).FirstOrDefaultAsync(ct);
+                        resolvedCatId = defaultCat?.Id ?? Guid.NewGuid();
+                    }
+
+                    schedule = new Schedule
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = userId,
+                        Name = string.IsNullOrWhiteSpace(dto.Name) ? $"{loan.Name} (EMI)" : dto.Name.Trim(),
+                        Kind = EntryKind.Expense,
+                        Subtype = EntrySubtype.Emi,
+                        Amount = (long)(dto.Amount * 100),
+                        Frequency = ScheduleFrequency.Monthly,
+                        NextDate = nextDate,
+                        AccountId = loan.PayFromAccountId,
+                        CategoryId = resolvedCatId,
+                        Active = dto.Enabled,
+                        NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need
+                    };
+                    _dbContext.Schedules.Add(schedule);
+                }
+            }
+        }
 
         if (schedule == null)
         {
@@ -179,31 +250,74 @@ public class RecurringController : BaseApiController
         return Ok(ApiResponse<RecurringItemDto>.SuccessResult(MapToDto(schedule), "Recurring item updated"));
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id}")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> DeleteRecurring(Guid id, CancellationToken ct)
+    public async Task<IActionResult> DeleteRecurring(string id, CancellationToken ct)
     {
         var userId = GetUserId();
-        var schedule = await _dbContext.Schedules
-            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId, ct);
-
-        if (schedule == null)
+        Guid? scheduleId = null;
+        if (id.StartsWith("rec-loan-", StringComparison.OrdinalIgnoreCase))
         {
-            return NotFound(ApiResponse<object>.FailureResult("Schedule not found"));
+            if (Guid.TryParse(id.Substring("rec-loan-".Length), out var plid))
+            {
+                var loan = await _dbContext.Loans.FirstOrDefaultAsync(l => l.Id == plid && l.UserId == userId, ct);
+                if (loan != null)
+                {
+                    loan.AutoPost = false;
+                }
+            }
+        }
+        else if (Guid.TryParse(id, out var parsedGuid))
+        {
+            scheduleId = parsedGuid;
         }
 
-        _dbContext.Schedules.Remove(schedule);
+        if (scheduleId.HasValue)
+        {
+            var schedule = await _dbContext.Schedules
+                .FirstOrDefaultAsync(s => s.Id == scheduleId.Value && s.UserId == userId, ct);
+
+            if (schedule != null)
+            {
+                _dbContext.Schedules.Remove(schedule);
+            }
+        }
+
         await _dbContext.SaveChangesAsync(ct);
         return Ok(ApiResponse<bool>.SuccessResult(true, "Schedule removed"));
     }
 
-    [HttpPost("{id:guid}/toggle")]
+    [HttpPost("{id}/toggle")]
     [ProducesResponseType(typeof(ApiResponse<RecurringItemDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Toggle(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Toggle(string id, CancellationToken ct)
     {
         var userId = GetUserId();
+        Guid? scheduleId = null;
+        if (id.StartsWith("rec-loan-", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Guid.TryParse(id.Substring("rec-loan-".Length), out var plid))
+            {
+                var loan = await _dbContext.Loans.FirstOrDefaultAsync(l => l.Id == plid && l.UserId == userId, ct);
+                if (loan != null)
+                {
+                    loan.AutoPost = !loan.AutoPost;
+                    await _dbContext.SaveChangesAsync(ct);
+                    return Ok(ApiResponse<object>.SuccessResult(true, $"Loan EMI {(loan.AutoPost ? "activated" : "paused")}"));
+                }
+            }
+        }
+        else if (Guid.TryParse(id, out var parsedGuid))
+        {
+            scheduleId = parsedGuid;
+        }
+
+        if (!scheduleId.HasValue)
+        {
+            return NotFound(ApiResponse<object>.FailureResult("Schedule not found"));
+        }
+
         var schedule = await _dbContext.Schedules
-            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId, ct);
+            .FirstOrDefaultAsync(s => s.Id == scheduleId.Value && s.UserId == userId, ct);
 
         if (schedule == null)
         {

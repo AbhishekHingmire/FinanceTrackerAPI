@@ -20,6 +20,7 @@ public static class CategoryDefaults
             // new() { Id = Guid.NewGuid(), UserId = userId, Name = "Salary", Kind = EntryKind.Income, Icon = "💼", Color = "green", MonthlyCap = null },
             // new() { Id = Guid.NewGuid(), UserId = userId, Name = "Freelance & Consulting", Kind = EntryKind.Income, Icon = "💻", Color = "blue", MonthlyCap = null },
             // new() { Id = Guid.NewGuid(), UserId = userId, Name = "Dividends & Returns", Kind = EntryKind.Income, Icon = "📈", Color = "teal", MonthlyCap = null },
+            new() { Id = Guid.NewGuid(), UserId = userId, Name = "Investments & SIPs", Kind = EntryKind.Expense, Icon = "📈", Color = "teal", MonthlyCap = 1500000, DefaultNeedWant = NeedWant.Need },
             new() { Id = Guid.NewGuid(), UserId = userId, Name = "Loan EMI & Debt", Kind = EntryKind.Expense, Icon = "💳", Color = "rose", MonthlyCap = 4500000, DefaultNeedWant = NeedWant.Need }
         };
     }

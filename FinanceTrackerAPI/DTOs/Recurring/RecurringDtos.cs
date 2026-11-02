@@ -9,7 +9,7 @@ public class RecurringItemDto
     public string Type { get; set; } = "Expense";
     public decimal Amount { get; set; }
     public Guid CategoryId { get; set; }
-    public Guid AccountId { get; set; }
+    public Guid? AccountId { get; set; }
     public string Frequency { get; set; } = "Monthly";
     public int IntervalDays { get; set; } = 30;
     public string StartDate { get; set; } = string.Empty;
@@ -34,8 +34,8 @@ public class CreateRecurringDto
 
     public Guid? CategoryId { get; set; }
 
-    [Required]
-    public Guid AccountId { get; set; }
+    // Account optional - for pure expense tracking mode, defaulted by controller if omitted
+    public Guid? AccountId { get; set; }
 
     public string Frequency { get; set; } = "Monthly";
     public int IntervalDays { get; set; } = 30;

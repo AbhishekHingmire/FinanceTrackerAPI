@@ -328,18 +328,19 @@ public class StateController : BaseApiController
             Language = "English",
             WeekStart = w.WeekStart == "Sunday" ? "Sunday" : "Monday",
             Theme = w.Theme,
-            DefaultType = w.DefaultType == "Income" ? "Income" : "Expense",
+            DefaultType = "Expense",
             DefaultAccount = w.DefaultAccountId?.ToString() ?? (accounts.FirstOrDefault()?.Id.ToString() ?? string.Empty),
             DefaultPaymentMethod = w.DefaultPaymentMethod,
             RecurringReminders = w.AlertEmiSip3Days,
             BudgetReminders = w.AlertBudget90Percent
         } : new WealthPreferencesDto
         {
-            DisplayName = user.FullName
+            DisplayName = user.FullName,
+            DefaultType = "Expense"
         };
 
-        // If the user has created at least one account, mark onboarded as true
-        var isOnboarded = accounts.Any();
+        // In pure expense tracking mode, user is considered onboarded if categories exist or accounts exist
+        var isOnboarded = categories.Any() || accounts.Any();
 
         var state = new WorkspaceStateDto
         {

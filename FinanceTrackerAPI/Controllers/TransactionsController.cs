@@ -109,6 +109,38 @@ public class TransactionsController : BaseApiController
             loanIdGuid = parsedLoanId;
         }
 
+        // Resolve AccountId safely for pure expense tracking mode
+        Guid resolvedAccountId;
+        if (dto.AccountId.HasValue && dto.AccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.AccountId.Value && a.UserId == userId, ct))
+        {
+            resolvedAccountId = dto.AccountId.Value;
+        }
+        else
+        {
+            var acc = await _dbContext.Accounts
+                .Where(a => a.UserId == userId)
+                .OrderBy(a => a.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (acc == null)
+            {
+                acc = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Name = "General",
+                    Type = AccountType.Bank,
+                    OpeningBalance = 0,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                _dbContext.Accounts.Add(acc);
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            resolvedAccountId = acc.Id;
+        }
+
         var entry = new Entry
         {
             Id = Guid.NewGuid(),
@@ -117,7 +149,7 @@ public class TransactionsController : BaseApiController
             Kind = kind,
             Subtype = subtype,
             Amount = paise,
-            AccountId = dto.AccountId,
+            AccountId = resolvedAccountId,
             ToRefId = dto.DestinationAccountId,
             CategoryId = dto.CategoryId,
             NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need,
@@ -155,7 +187,11 @@ public class TransactionsController : BaseApiController
         entry.Kind = kind;
         entry.Subtype = subtype;
         entry.Amount = (long)(dto.Amount * 100);
-        entry.AccountId = dto.AccountId;
+        if (dto.AccountId.HasValue && dto.AccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.AccountId.Value && a.UserId == userId, ct))
+        {
+            entry.AccountId = dto.AccountId.Value;
+        }
         entry.ToRefId = dto.DestinationAccountId;
         entry.CategoryId = dto.CategoryId;
         entry.NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need;

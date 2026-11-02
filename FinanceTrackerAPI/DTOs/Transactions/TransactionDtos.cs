@@ -10,7 +10,7 @@ public class TransactionDto
     public string Type { get; set; } = "Expense";
     public decimal Amount { get; set; }
     public Guid CategoryId { get; set; }
-    public Guid AccountId { get; set; }
+    public Guid? AccountId { get; set; }
     public Guid? DestinationAccountId { get; set; }
     public string PaymentMethod { get; set; } = "UPI";
     public string Need { get; set; } = "Need";
@@ -42,8 +42,8 @@ public class CreateTransactionDto
 
     public Guid? CategoryId { get; set; }
 
-    [Required(ErrorMessage = "Account is required")]
-    public Guid AccountId { get; set; }
+    // Account optional - for pure expense tracking mode, defaulted by controller if omitted
+    public Guid? AccountId { get; set; }
 
     public Guid? DestinationAccountId { get; set; }
 

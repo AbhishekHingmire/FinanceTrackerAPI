@@ -83,6 +83,38 @@ public class RecurringController : BaseApiController
             resolvedCategoryId = cat.Id;
         }
 
+        // Resolve AccountId safely for pure expense tracking mode
+        Guid resolvedAccountId;
+        if (dto.AccountId.HasValue && dto.AccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.AccountId.Value && a.UserId == userId, ct))
+        {
+            resolvedAccountId = dto.AccountId.Value;
+        }
+        else
+        {
+            var acc = await _dbContext.Accounts
+                .Where(a => a.UserId == userId)
+                .OrderBy(a => a.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (acc == null)
+            {
+                acc = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Name = "General",
+                    Type = AccountType.Bank,
+                    OpeningBalance = 0,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                _dbContext.Accounts.Add(acc);
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            resolvedAccountId = acc.Id;
+        }
+
         var schedule = new Schedule
         {
             Id = Guid.NewGuid(),
@@ -93,7 +125,7 @@ public class RecurringController : BaseApiController
             Amount = (long)(dto.Amount * 100),
             Frequency = freq,
             NextDate = nextDate,
-            AccountId = dto.AccountId,
+            AccountId = resolvedAccountId,
             CategoryId = resolvedCategoryId,
             Active = dto.Enabled,
             NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need
@@ -126,7 +158,11 @@ public class RecurringController : BaseApiController
             _ => (!string.IsNullOrWhiteSpace(dto.LoanId) ? EntrySubtype.Emi : schedule.Subtype)
         };
         schedule.Amount = (long)(dto.Amount * 100);
-        schedule.AccountId = dto.AccountId;
+        if (dto.AccountId.HasValue && dto.AccountId.Value != Guid.Empty &&
+            await _dbContext.Accounts.AnyAsync(a => a.Id == dto.AccountId.Value && a.UserId == userId, ct))
+        {
+            schedule.AccountId = dto.AccountId.Value;
+        }
         if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
         {
             schedule.CategoryId = dto.CategoryId.Value;

@@ -9,6 +9,9 @@ using FinanceTrackerAPI.DTOs.Transactions;
 using FinanceTrackerAPI.Entities;
 using FinanceTrackerAPI.Enums;
 
+// [SECTION COMMENTED DOWN: PURE EXPENSE TRACKER MODE ACTIVE]
+// The Accounts section and account-management workflows are commented down/disabled
+// as the application focuses strictly on outgoings and expense tracking category-wise.
 public class AccountsController : BaseApiController
 {
     private readonly FinanceTrackerDbContext _dbContext;
@@ -24,20 +27,8 @@ public class AccountsController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<List<AccountDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccounts(CancellationToken ct)
     {
-        var userId = GetUserId();
-        var accounts = await _dbContext.Accounts
-            .AsNoTracking()
-            .Where(a => a.UserId == userId)
-            .OrderBy(a => a.CreatedAt)
-            .ToListAsync(ct);
-
-        var entries = await _dbContext.Entries
-            .AsNoTracking()
-            .Where(e => e.UserId == userId && !e.IsDeleted)
-            .ToListAsync(ct);
-
-        var dtos = accounts.Select(a => MapToDto(a, entries)).ToList();
-        return Ok(ApiResponse<List<AccountDto>>.SuccessResult(dtos));
+        // For pure expense tracking mode, return empty list to prevent accounts display
+        return Ok(ApiResponse<List<AccountDto>>.SuccessResult(new List<AccountDto>()));
     }
 
     [HttpGet("{id:guid}")]

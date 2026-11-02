@@ -60,6 +60,7 @@ builder.Services.AddScoped<ISmsService, TextplateSmsService>();
 builder.Services.AddScoped<IErrorLogService, ErrorLogService>();
 builder.Services.AddScoped<IMarketDataService, MarketDataService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHostedService<RecurringProcessorBackgroundService>();
 
 // 3. Configure JWT Authentication & Authorization
 var jwtSecret = builder.Configuration["Jwt:SecretKey"] ?? "WealthTrackSuperSecretKey_ProductionGrade_256BitsMinLength_2026";

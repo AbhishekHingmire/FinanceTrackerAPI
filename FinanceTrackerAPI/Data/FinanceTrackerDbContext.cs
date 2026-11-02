@@ -20,6 +20,7 @@ public class FinanceTrackerDbContext : DbContext
     public DbSet<UserProfileTargets> ProfileTargets => Set<UserProfileTargets>();
     public DbSet<UserWealthPreferences> WealthPreferences => Set<UserWealthPreferences>();
     public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -244,6 +245,21 @@ public class FinanceTrackerDbContext : DbContext
             b.HasIndex(e => e.Timestamp);
             b.HasIndex(e => e.UserId);
             b.HasIndex(e => e.ControllerName);
+        });
+
+        // Notification
+        modelBuilder.Entity<Notification>(b =>
+        {
+            b.HasKey(n => n.Id);
+            b.Property(n => n.Title).HasMaxLength(150).IsRequired();
+            b.Property(n => n.Message).HasMaxLength(500).IsRequired();
+            b.Property(n => n.Type).HasMaxLength(50).IsRequired();
+            b.Property(n => n.Link).HasMaxLength(250);
+            b.HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
         });
     }
 }

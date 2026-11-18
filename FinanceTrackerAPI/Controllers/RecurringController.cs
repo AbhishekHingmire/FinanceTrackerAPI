@@ -65,17 +65,38 @@ public class RecurringController : BaseApiController
             _ => (!string.IsNullOrWhiteSpace(dto.LoanId) ? EntrySubtype.Emi : EntrySubtype.None)
         };
 
+        var kind = dto.Type switch
+        {
+            "Income" => EntryKind.Income,
+            "Transfer" => EntryKind.Transfer,
+            _ => EntryKind.Expense
+        };
+
         // Resolve CategoryId safely
         Guid resolvedCategoryId;
-        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty &&
-            await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
         {
-            resolvedCategoryId = dto.CategoryId.Value;
+            var cat = await _dbContext.Categories
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value && (c.UserId == userId || c.UserId == null), ct);
+            if (cat != null)
+            {
+                resolvedCategoryId = cat.Id;
+                if (cat.Kind == EntryKind.Transfer && kind != EntryKind.Transfer)
+                {
+                    kind = EntryKind.Transfer;
+                }
+            }
+            else
+            {
+                var matchingCat = await _dbContext.Categories
+                    .FirstOrDefaultAsync(c => (c.UserId == userId || c.UserId == null) && (c.Name.Contains("Investment") || c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                resolvedCategoryId = matchingCat?.Id ?? (await _dbContext.Categories.Where(c => c.UserId == userId || c.UserId == null).Select(c => c.Id).FirstOrDefaultAsync(ct));
+            }
         }
         else
         {
             var cat = await _dbContext.Categories
-                .Where(c => c.UserId == userId)
+                .Where(c => c.UserId == userId || c.UserId == null)
                 .OrderBy(c => c.Name)
                 .FirstOrDefaultAsync(ct);
 
@@ -126,7 +147,7 @@ public class RecurringController : BaseApiController
             Id = Guid.NewGuid(),
             UserId = userId,
             Name = dto.Name.Trim(),
-            Kind = dto.Type == "Income" ? EntryKind.Income : EntryKind.Expense,
+            Kind = kind,
             Subtype = subtype,
             Amount = (long)(dto.Amount * 100),
             Frequency = freq,
@@ -228,7 +249,7 @@ public class RecurringController : BaseApiController
         }
 
         schedule.Name = dto.Name.Trim();
-        schedule.Kind = dto.Type == "Income" ? EntryKind.Income : EntryKind.Expense;
+        schedule.Kind = dto.Type == "Income" ? EntryKind.Income : dto.Type == "Transfer" ? EntryKind.Transfer : EntryKind.Expense;
         schedule.Subtype = dto.Type switch
         {
             "Investment" => EntrySubtype.Sip,
@@ -242,14 +263,20 @@ public class RecurringController : BaseApiController
         }
         if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
         {
-            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+            var cat = await _dbContext.Categories
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value && (c.UserId == userId || c.UserId == null), ct);
+            if (cat != null)
             {
-                schedule.CategoryId = dto.CategoryId.Value;
+                schedule.CategoryId = cat.Id;
+                if (cat.Kind == EntryKind.Transfer && schedule.Kind != EntryKind.Transfer)
+                {
+                    schedule.Kind = EntryKind.Transfer;
+                }
             }
             else
             {
                 var matchingCat = await _dbContext.Categories
-                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                    .FirstOrDefaultAsync(c => (c.UserId == userId || c.UserId == null) && (c.Name.Contains("Investment") || c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
                 if (matchingCat != null)
                 {
                     schedule.CategoryId = matchingCat.Id;
@@ -415,7 +442,7 @@ public class RecurringController : BaseApiController
     {
         Id = s.Id,
         Name = s.Name,
-        Type = s.Subtype == EntrySubtype.Sip ? "Investment" : (s.Kind == EntryKind.Income ? "Income" : "Expense"),
+        Type = s.Subtype == EntrySubtype.Sip ? "Investment" : (s.Kind == EntryKind.Income ? "Income" : s.Kind == EntryKind.Transfer ? "Transfer" : "Expense"),
         Amount = s.Amount / 100m,
         CategoryId = s.CategoryId,
         AccountId = s.AccountId,

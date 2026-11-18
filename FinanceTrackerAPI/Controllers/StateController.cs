@@ -281,7 +281,7 @@ public class StateController : BaseApiController
         {
             Id = s.Id,
             Name = s.Name,
-            Type = s.Kind == EntryKind.Income ? "Income" : "Expense",
+            Type = s.Subtype == EntrySubtype.Sip ? "Investment" : (s.Kind == EntryKind.Income ? "Income" : s.Kind == EntryKind.Transfer ? "Transfer" : "Expense"),
             Amount = s.Amount / 100m,
             CategoryId = s.CategoryId,
             AccountId = s.AccountId,
@@ -292,6 +292,7 @@ public class StateController : BaseApiController
                 _ => "Monthly"
             },
             IntervalDays = 30,
+            RecurringDay = s.NextDate.Day,
             StartDate = s.NextDate.ToString("yyyy-MM-dd"),
             NextDate = s.NextDate.ToString("yyyy-MM-dd"),
             Need = s.NeedWant == NeedWant.Want ? "Want" : "Need",

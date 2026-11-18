@@ -145,14 +145,20 @@ public class TransactionsController : BaseApiController
         Guid? resolvedCategoryId = null;
         if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
         {
-            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+            var cat = await _dbContext.Categories
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value && (c.UserId == userId || c.UserId == null), ct);
+            if (cat != null)
             {
-                resolvedCategoryId = dto.CategoryId.Value;
+                resolvedCategoryId = cat.Id;
+                if (cat.Kind == EntryKind.Transfer && kind != EntryKind.Transfer)
+                {
+                    kind = EntryKind.Transfer;
+                }
             }
             else
             {
                 var matchingCat = await _dbContext.Categories
-                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                    .FirstOrDefaultAsync(c => (c.UserId == userId || c.UserId == null) && (c.Name.Contains("Investment") || c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
                 resolvedCategoryId = matchingCat?.Id;
             }
         }
@@ -213,14 +219,20 @@ public class TransactionsController : BaseApiController
         // Safely resolve CategoryId to prevent Foreign Key constraint conflicts
         if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
         {
-            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+            var cat = await _dbContext.Categories
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId.Value && (c.UserId == userId || c.UserId == null), ct);
+            if (cat != null)
             {
-                entry.CategoryId = dto.CategoryId.Value;
+                entry.CategoryId = cat.Id;
+                if (cat.Kind == EntryKind.Transfer && entry.Kind != EntryKind.Transfer)
+                {
+                    entry.Kind = EntryKind.Transfer;
+                }
             }
             else
             {
                 var matchingCat = await _dbContext.Categories
-                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                    .FirstOrDefaultAsync(c => (c.UserId == userId || c.UserId == null) && (c.Name.Contains("Investment") || c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
                 entry.CategoryId = matchingCat?.Id;
             }
         }
@@ -283,14 +295,16 @@ public class TransactionsController : BaseApiController
         Guid? resolvedCatId = null;
         if (dto.CategoryId != Guid.Empty)
         {
-            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId && c.UserId == userId, ct))
+            var cat = await _dbContext.Categories
+                .FirstOrDefaultAsync(c => c.Id == dto.CategoryId && (c.UserId == userId || c.UserId == null), ct);
+            if (cat != null)
             {
-                resolvedCatId = dto.CategoryId;
+                resolvedCatId = cat.Id;
             }
             else
             {
                 var matchingCat = await _dbContext.Categories
-                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                    .FirstOrDefaultAsync(c => (c.UserId == userId || c.UserId == null) && (c.Name.Contains("Investment") || c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
                 resolvedCatId = matchingCat?.Id;
             }
         }
@@ -299,9 +313,17 @@ public class TransactionsController : BaseApiController
             .Where(e => dto.Ids.Contains(e.Id) && e.UserId == userId && !e.IsDeleted)
             .ToListAsync(ct);
 
+        Category? targetCat = resolvedCatId.HasValue
+            ? await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == resolvedCatId.Value, ct)
+            : null;
+
         foreach (var entry in entries)
         {
             entry.CategoryId = resolvedCatId;
+            if (targetCat != null && targetCat.Kind == EntryKind.Transfer && entry.Kind != EntryKind.Transfer)
+            {
+                entry.Kind = EntryKind.Transfer;
+            }
         }
 
         await _dbContext.SaveChangesAsync(ct);
@@ -331,6 +353,7 @@ public class TransactionsController : BaseApiController
     {
         "Income" => (EntryKind.Income, EntrySubtype.None),
         "Transfer" => (EntryKind.Transfer, EntrySubtype.None),
+        "Investment" => (EntryKind.Transfer, EntrySubtype.Sip),
         "EMI / Loan Payment" => (EntryKind.Expense, EntrySubtype.Emi),
         "Borrow / Loan Taken" => (EntryKind.Income, EntrySubtype.Borrowed),
         "Lend / Loan Given" => (EntryKind.Expense, EntrySubtype.Lent),

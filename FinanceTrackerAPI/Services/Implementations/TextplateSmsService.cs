@@ -71,7 +71,7 @@ public class TextplateSmsService : ISmsService
         }
 
         var apiUrl = _configuration["Textplate:ApiUrl"] ?? "https://api.textplate.in/v1/send-sms";
-        var apiKey = _configuration["Textplate:ApiKey"] ?? "0f5d7968183ceabe30fac292f87e4a56711d6450";
+        var apiKey = _configuration["Textplate:ApiKey"] ?? "4919f31e9235bcdcc23e8b9b6df66f4e90de7e14";
         var templateId = _configuration["Textplate:TemplateId"] ?? "e09d6413a6d6b287298a7309170f1a3d07be2bac";
         var expiryValue = _configuration["Textplate:ExpiryValue"] ?? "5 minutes";
         var detailValue = _configuration["Textplate:DetailValue"] ?? "Finance Tracking";

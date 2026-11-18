@@ -236,7 +236,19 @@ public class RecurringController : BaseApiController
         }
         if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
         {
-            schedule.CategoryId = dto.CategoryId.Value;
+            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+            {
+                schedule.CategoryId = dto.CategoryId.Value;
+            }
+            else
+            {
+                var matchingCat = await _dbContext.Categories
+                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                if (matchingCat != null)
+                {
+                    schedule.CategoryId = matchingCat.Id;
+                }
+            }
         }
         schedule.Active = dto.Enabled;
         schedule.NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need;

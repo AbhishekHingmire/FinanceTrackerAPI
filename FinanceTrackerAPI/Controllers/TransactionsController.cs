@@ -141,6 +141,22 @@ public class TransactionsController : BaseApiController
             resolvedAccountId = acc.Id;
         }
 
+        // Resolve CategoryId safely to prevent Foreign Key constraint conflicts
+        Guid? resolvedCategoryId = null;
+        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
+        {
+            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+            {
+                resolvedCategoryId = dto.CategoryId.Value;
+            }
+            else
+            {
+                var matchingCat = await _dbContext.Categories
+                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                resolvedCategoryId = matchingCat?.Id;
+            }
+        }
+
         var entry = new Entry
         {
             Id = Guid.NewGuid(),
@@ -151,7 +167,7 @@ public class TransactionsController : BaseApiController
             Amount = paise,
             AccountId = resolvedAccountId,
             ToRefId = dto.DestinationAccountId,
-            CategoryId = dto.CategoryId,
+            CategoryId = resolvedCategoryId,
             NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need,
             Note = dto.Description.Trim(),
             Merchant = dto.Merchant?.Trim() ?? dto.Description.Trim(),
@@ -193,7 +209,26 @@ public class TransactionsController : BaseApiController
             entry.AccountId = dto.AccountId.Value;
         }
         entry.ToRefId = dto.DestinationAccountId;
-        entry.CategoryId = dto.CategoryId;
+
+        // Safely resolve CategoryId to prevent Foreign Key constraint conflicts
+        if (dto.CategoryId.HasValue && dto.CategoryId.Value != Guid.Empty)
+        {
+            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId.Value && c.UserId == userId, ct))
+            {
+                entry.CategoryId = dto.CategoryId.Value;
+            }
+            else
+            {
+                var matchingCat = await _dbContext.Categories
+                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                entry.CategoryId = matchingCat?.Id;
+            }
+        }
+        else
+        {
+            entry.CategoryId = null;
+        }
+
         entry.NeedWant = dto.Need == "Want" ? NeedWant.Want : NeedWant.Need;
         entry.Note = dto.Description.Trim();
         entry.Merchant = dto.Merchant?.Trim() ?? dto.Description.Trim();
@@ -245,13 +280,28 @@ public class TransactionsController : BaseApiController
     public async Task<IActionResult> BulkReassignCategory([FromBody] BulkReassignCategoryDto dto, CancellationToken ct)
     {
         var userId = GetUserId();
+        Guid? resolvedCatId = null;
+        if (dto.CategoryId != Guid.Empty)
+        {
+            if (await _dbContext.Categories.AnyAsync(c => c.Id == dto.CategoryId && c.UserId == userId, ct))
+            {
+                resolvedCatId = dto.CategoryId;
+            }
+            else
+            {
+                var matchingCat = await _dbContext.Categories
+                    .FirstOrDefaultAsync(c => c.UserId == userId && (c.Name.Contains("Loan") || c.Name.Contains("EMI") || c.Name.Contains("Debt")), ct);
+                resolvedCatId = matchingCat?.Id;
+            }
+        }
+
         var entries = await _dbContext.Entries
             .Where(e => dto.Ids.Contains(e.Id) && e.UserId == userId && !e.IsDeleted)
             .ToListAsync(ct);
 
         foreach (var entry in entries)
         {
-            entry.CategoryId = dto.CategoryId;
+            entry.CategoryId = resolvedCatId;
         }
 
         await _dbContext.SaveChangesAsync(ct);

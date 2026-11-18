@@ -52,6 +52,12 @@ public class RecurringController : BaseApiController
         };
 
         var nextDate = DateOnly.TryParse(dto.NextDate.Split('T')[0], out var nd) ? nd : DateOnly.FromDateTime(DateTime.UtcNow);
+        if (dto.RecurringDay.HasValue && dto.RecurringDay.Value >= 1 && dto.RecurringDay.Value <= 31)
+        {
+            var maxDays = DateTime.DaysInMonth(nextDate.Year, nextDate.Month);
+            var safeDay = Math.Min(dto.RecurringDay.Value, maxDays);
+            nextDate = new DateOnly(nextDate.Year, nextDate.Month, safeDay);
+        }
 
         var subtype = dto.Type switch
         {
@@ -255,7 +261,16 @@ public class RecurringController : BaseApiController
 
         if (DateOnly.TryParse(dto.NextDate.Split('T')[0], out var nd))
         {
-            schedule.NextDate = nd;
+            if (dto.RecurringDay.HasValue && dto.RecurringDay.Value >= 1 && dto.RecurringDay.Value <= 31)
+            {
+                var maxDays = DateTime.DaysInMonth(nd.Year, nd.Month);
+                var safeDay = Math.Min(dto.RecurringDay.Value, maxDays);
+                schedule.NextDate = new DateOnly(nd.Year, nd.Month, safeDay);
+            }
+            else
+            {
+                schedule.NextDate = nd;
+            }
         }
 
         await _dbContext.SaveChangesAsync(ct);
@@ -411,6 +426,7 @@ public class RecurringController : BaseApiController
             _ => "Monthly"
         },
         IntervalDays = 30,
+        RecurringDay = s.NextDate.Day,
         StartDate = s.NextDate.ToString("yyyy-MM-dd"),
         NextDate = s.NextDate.ToString("yyyy-MM-dd"),
         Need = s.NeedWant == NeedWant.Want ? "Want" : "Need",

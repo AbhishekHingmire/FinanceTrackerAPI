@@ -12,6 +12,7 @@ public class RecurringItemDto
     public Guid? AccountId { get; set; }
     public string Frequency { get; set; } = "Monthly";
     public int IntervalDays { get; set; } = 30;
+    public int? RecurringDay { get; set; }
     public string StartDate { get; set; } = string.Empty;
     public string? EndDate { get; set; }
     public string NextDate { get; set; } = string.Empty;
@@ -40,8 +41,10 @@ public class CreateRecurringDto
     public string Frequency { get; set; } = "Monthly";
     public int IntervalDays { get; set; } = 30;
 
-    [Required]
-    public string StartDate { get; set; } = string.Empty;
+    [Range(1, 31, ErrorMessage = "Recurring day of month must be between 1 and 31")]
+    public int? RecurringDay { get; set; }
+
+    public string? StartDate { get; set; }
     public string? EndDate { get; set; }
 
     [Required]
